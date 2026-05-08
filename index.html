@@ -346,6 +346,26 @@ body {
 .kpi-card.highlight .kpi-label { color: var(--green-primary); }
 .kpi-card.highlight .kpi-number { color: var(--green-primary); }
 .kpi-card.highlight .kpi-desc { color: rgba(59,255,91,0.8); }
+.kpi-card.clickable { cursor: pointer; transition: all 0.3s ease; }
+.kpi-card.clickable:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); }
+.kpi-card.active-approved { border-color: var(--green-primary); box-shadow: 0 0 30px rgba(59,255,91,0.2); background: var(--surface-active); }
+.kpi-card.active-rejected { border-color: var(--red); box-shadow: 0 0 30px rgba(253,98,94,0.2); background: rgba(253,98,94,0.08); }
+
+/* CREATOR CREDIT */
+.creator-credit {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+.creator-credit:hover {
+  opacity: 1;
+  color: var(--green-primary);
+  text-shadow: 0 0 10px var(--green-glow);
+}
 
 /* ═══════════════════════════════════════════════════
    SECTION DIVIDER
@@ -713,8 +733,8 @@ function ChartBox({cfg,title,sub,h=260}){
   return(<div className="chart-card"><div className="chart-card-header"><div className="chart-card-title">{title}</div>{sub&&<div className="chart-card-sub">{sub}</div>}</div><div className="chart-wrap" style={{height:h}}><canvas ref={ref}></canvas></div></div>);
 }
 
-function KPICard({label,value,desc,color='neutral',highlight}){
-  return(<div className={`kpi-card${highlight?' highlight':''}`}><div className="kpi-label">{label}</div><div className={`kpi-number ${color}`}>{value}</div>{desc&&<div className="kpi-desc">{desc}</div>}</div>);
+function KPICard({label,value,desc,color='neutral',highlight, onClick, className=''}){
+  return(<div className={`kpi-card ${className}${highlight?' highlight':''}${onClick?' clickable':''}`} onClick={onClick} style={onClick?{cursor:'pointer'}:{}}><div className="kpi-label">{label}</div><div className={`kpi-number ${color}`}>{value}</div>{desc&&<div className="kpi-desc">{desc}</div>}</div>);
 }
 
 function SortTable({cols,rows,rowCls,wrapText}){
@@ -848,7 +868,53 @@ function SupplierLoomTab({rows}){
 
   const eCfg=useMemo(()=>({type:'bar',data:{labels,datasets:[{label:'Efficiency %',data:fe.map(r=>r.effi),backgroundColor:fe.map(r=>barC(r.effi,vE,false)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},rl(vE,labels.length,'Std')].filter(Boolean)},options:{...baseOpts(vE?Math.max(85,vE-8):85)}}),[sel]);
   const rCfg=useMemo(()=>({type:'bar',data:{labels,datasets:[{label:'RPM',data:fe.map(r=>r.rpm),backgroundColor:fe.map(r=>barC(r.rpm,vR,false)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},rl(vR,labels.length,'Std')].filter(Boolean)},options:{...baseOpts(vR?Math.max(850,vR-80):850)}}),[sel]);
-  const cCfg=useMemo(()=>({type:'bar',data:{labels,datasets:[{label:'Warp CMPX',data:fe.map(r=>r.warpCmpx),backgroundColor:fe.map(r=>barC(r.warpCmpx,vWC,true)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},{label:'Weft CMPX',data:fe.map(r=>r.weftCmpx),backgroundColor:fe.map(r=>barC(r.weftCmpx,vWt,true)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},vWC!==null?rl(vWC,labels.length,'Warp Std'):null].filter(Boolean)},options:{...baseOpts(0)}}),[sel]);
+  const warpCfg = useMemo(() => {
+    const validFe = fe.filter(r => r.warpCmpx !== null && r.warpCmpx !== undefined);
+    const validLabels = validFe.map(r => short(r.supplier));
+    return {
+      type: 'bar',
+      data: {
+        labels: validLabels,
+        datasets: [
+          {
+            label: 'Warp CMPX',
+            data: validFe.map(r => r.warpCmpx),
+            backgroundColor: validFe.map(r => barC(r.warpCmpx, vWC, true)),
+            borderRadius: 4,
+            borderWidth: 0,
+            barPercentage: 0.6,
+            categoryPercentage: 0.7
+          },
+          vWC !== null ? rl(vWC, validLabels.length, 'Warp Std') : null
+        ].filter(Boolean)
+      },
+      options: { ...baseOpts(0) }
+    };
+  }, [sel, fe, vWC]);
+
+  const weftCfg = useMemo(() => {
+    const validFe = fe.filter(r => r.weftCmpx !== null && r.weftCmpx !== undefined);
+    const validLabels = validFe.map(r => short(r.supplier));
+    return {
+      type: 'bar',
+      data: {
+        labels: validLabels,
+        datasets: [
+          {
+            label: 'Weft CMPX',
+            data: validFe.map(r => r.weftCmpx),
+            backgroundColor: validFe.map(r => barC(r.weftCmpx, vWt, true)),
+            borderRadius: 4,
+            borderWidth: 0,
+            barPercentage: 0.6,
+            categoryPercentage: 0.7
+          },
+          vWt !== null ? rl(vWt, validLabels.length, 'Weft Std') : null
+        ].filter(Boolean)
+      },
+      options: { ...baseOpts(0) }
+    };
+  }, [sel, fe, vWt]);
   const radarCfg=useMemo(()=>{
     const mets=['Effi %','RPM ÷10','Warp CMPX (inv)'];
     const palette=[['rgba(59,255,91,0.05)','#3BFF5B'],['rgba(163,255,18,0.05)','#A3FF12'],['rgba(34,197,94,0.05)','#22C55E'],['rgba(255,255,255,0.02)','#D1D5DB']];
@@ -902,8 +968,11 @@ function SupplierLoomTab({rows}){
       <ChartBox key={`sl-r-${sel}`} cfg={rCfg} title="RPM by Supplier" sub="vs VFB benchmark — higher is better"/>
     </div>
     <div className="chart-grid cols-2">
-      <ChartBox key={`sl-c-${sel}`} cfg={cCfg} title="Warp & Weft CMPX" sub="Complexity breaks — lower is better"/>
-      <ChartBox key={`sl-rad-${sel}`} cfg={radarCfg} title="Multi-metric Radar" sub="Top 4 suppliers vs VFB across 3 metrics" h={280}/>
+      <ChartBox key={`sl-warp-${sel}`} cfg={warpCfg} title="Warp CMPX Analysis" sub="Warp complexity breaks — lower is better"/>
+      <ChartBox key={`sl-weft-${sel}`} cfg={weftCfg} title="Weft CMPX Analysis" sub="Weft complexity breaks — lower is better"/>
+    </div>
+    <div className="chart-grid cols-1">
+      <ChartBox key={`sl-rad-${sel}`} cfg={radarCfg} title="Multi-metric Radar" sub="Top 4 suppliers vs VFB across 3 metrics" h={300}/>
     </div>
   </div>);
 }
@@ -1124,7 +1193,15 @@ function FinalSummaryTab({rows}){
   const passed=rows.filter(r=>r.decision.includes('✅')).length;
   const failed=rows.filter(r=>r.decision.includes('❌')).length;
   const rate=rows.length?Math.round(passed/rows.length*100):0;
-  const tRows=rows.map(r=>({...r,_qty:r.lotQty?fmt(r.lotQty,3)+' MT':'—'}));
+  const [filter, setFilter] = useState(null);
+  
+  const filteredRows = useMemo(() => {
+    if (filter === 'approved') return rows.filter(r => r.decision.includes('✅'));
+    if (filter === 'rejected') return rows.filter(r => r.decision.includes('❌'));
+    return rows;
+  }, [rows, filter]);
+  
+  const tRows=filteredRows.map(r=>({...r,_qty:r.lotQty?fmt(r.lotQty,3)+' MT':'—'}));
   const cols=[
     {k:'srNo',h:'#',cls:()=>'center'},
     {k:'count',h:'Count',cls:()=>'primary'},
@@ -1146,8 +1223,16 @@ function FinalSummaryTab({rows}){
     </div>
     <div className="kpi-grid">
       <KPICard label="Total Trials" value={rows.length+''} desc="Outsource yarn lots evaluated" color="blue"/>
-      <KPICard label="Approved" value={passed+''} desc="Passed all criteria" color="green"/>
-      <KPICard label="Rejected" value={failed+''} desc="Failed criteria" color="red"/>
+      <KPICard 
+        label="Approved" value={passed+''} desc="Click to filter approved" color="green"
+        onClick={() => setFilter(filter === 'approved' ? null : 'approved')}
+        className={filter === 'approved' ? 'active-approved' : ''}
+      />
+      <KPICard 
+        label="Rejected" value={failed+''} desc="Click to filter rejected" color="red"
+        onClick={() => setFilter(filter === 'rejected' ? null : 'rejected')}
+        className={filter === 'rejected' ? 'active-rejected' : ''}
+      />
       <KPICard label="Approval Rate" value={rate+'%'} desc="Overall success ratio" color={rate>=70?'green':'red'}/>
     </div>
     <div className="table-card">
@@ -1259,6 +1344,7 @@ function Dashboard({data,onReset}){
         {!isViewOnly&&<button className="sb-footer-btn download" onClick={()=>downloadDashboard(data)}><span>⬇</span> <span className="sb-footer-text">Download Dashboard</span></button>}
         {!isViewOnly&&<button className="sb-footer-btn reset" onClick={onReset}><span>↩</span> <span className="sb-footer-text">Upload New File</span></button>}
         {isViewOnly&&<div style={{padding:'4px 12px',fontSize:11,color:'rgba(255,255,255,0.3)',letterSpacing:1,textTransform:'uppercase'}}><span className="sb-footer-text">View Only</span></div>}
+        <div className="creator-credit sb-footer-text">Designed & Developed by Husain</div>
       </div>
     </aside>
     <main className="content">
