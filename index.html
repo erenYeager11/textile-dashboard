@@ -1049,8 +1049,8 @@ function SupplierWarpTab({rows}){
 // ─── LOT LOOM ─────────────────────────────────────────────────────────────────
 function LotLoomTab({rows}){
   const groups=useMemo(()=>groupBy(rows,'count'),[rows]);
-  const counts=Object.keys(groups);
-  const[active,setActive]=useState(counts[0]||'');
+  const counts=['ALL', ...Object.keys(groups)];
+  const[active,setActive]=useState('ALL');
   const Panel=({cr,cn})=>{
     const vfb=cr.filter(r=>isVFB(r.supplier)),ext=cr.filter(r=>!isVFB(r.supplier));
     const vE=avg(vfb.map(r=>r.effi)),vR=avg(vfb.map(r=>r.rpm));
@@ -1099,18 +1099,18 @@ function LotLoomTab({rows}){
     </div>
     <InfoBox>The ranking chart sorts all outsource lots by efficiency. Green indicates performance at or above the VFB benchmark, while red indicates performance below target.</InfoBox>
     <div className="filter-bar">
-      <span className="filter-label">Select Count:</span>
+      <span className="filter-label">Filter by Count:</span>
       {counts.map(c=><button key={c} className={`filter-btn${active===c?' active':''}`} onClick={()=>setActive(c)}>{c}</button>)}
     </div>
-    {active&&groups[active]&&<Panel key={active} cr={groups[active]} cn={active}/>}
+    {active&&(active==='ALL'?rows:groups[active])&&<Panel key={active} cr={active==='ALL'?rows:groups[active]} cn={active}/>}
   </div>);
 }
 
 // ─── LOT WARP ─────────────────────────────────────────────────────────────────
 function LotWarpTab({rows}){
   const groups=useMemo(()=>groupBy(rows,'count'),[rows]);
-  const counts=Object.keys(groups);
-  const[active,setActive]=useState(counts[0]||'');
+  const counts=['ALL', ...Object.keys(groups)];
+  const[active,setActive]=useState('ALL');
   const Panel=({cr,cn})=>{
     const vfb=cr.filter(r=>isVFB(r.supplier)),ext=cr.filter(r=>!isVFB(r.supplier));
     const vT=avg(vfb.map(r=>r.total)),vS=avg(vfb.map(r=>r.spg)),vW=avg(vfb.map(r=>r.wdg));
@@ -1149,10 +1149,10 @@ function LotWarpTab({rows}){
       <p>Individual lot break rates per yarn count. Select a count to view details.</p>
     </div>
     <div className="filter-bar">
-      <span className="filter-label">Select Count:</span>
+      <span className="filter-label">Filter by Count:</span>
       {counts.map(c=><button key={c} className={`filter-btn${active===c?' active':''}`} onClick={()=>setActive(c)}>{c}</button>)}
     </div>
-    {active&&groups[active]&&<Panel key={active} cr={groups[active]} cn={active}/>}
+    {active&&(active==='ALL'?rows:groups[active])&&<Panel key={active} cr={active==='ALL'?rows:groups[active]} cn={active}/>}
   </div>);
 }
 
