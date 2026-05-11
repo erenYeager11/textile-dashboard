@@ -681,6 +681,7 @@ function barC(v,ref,lower){
   if(lower)return v<=ref?'#3BFF5B':'#FD625E';
   return v>=ref?'#3BFF5B':'#FD625E';
 }
+const rl=(val,len,lbl)=>val!==null?{label:`VFB ${lbl} (${fmt(val)})`,data:Array(len).fill(val),type:'line',borderColor:'#F2C80F',borderWidth:2,borderDash:[4,4],pointRadius:0,fill:false,tension:0,order:-1}:null;
 
 // ─── EXCEL PARSER ────────────────────────────────────────────────────────────
 function parseExcel(buffer){
@@ -864,7 +865,6 @@ function SupplierLoomTab({rows}){
   const vWC=avg(fv.filter(r=>r.warpCmpx!==null).map(r=>r.warpCmpx));
   const vWt=avg(fv.filter(r=>r.weftCmpx!==null).map(r=>r.weftCmpx));
   const labels=fe.map(r=>short(r.supplier));
-  const rl=(val,len,lbl)=>val!==null?{label:`VFB ${lbl} (${fmt(val)})`,data:Array(len).fill(val),type:'line',borderColor:'#F2C80F',borderWidth:2,borderDash:[4,4],pointRadius:0,fill:false,tension:0,order:-1}:null;
 
   const eCfg=useMemo(()=>({type:'bar',data:{labels,datasets:[{label:'Efficiency %',data:fe.map(r=>r.effi),backgroundColor:fe.map(r=>barC(r.effi,vE,false)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},rl(vE,labels.length,'Std')].filter(Boolean)},options:{...baseOpts(vE?Math.max(85,vE-8):85)}}),[sel]);
   const rCfg=useMemo(()=>({type:'bar',data:{labels,datasets:[{label:'RPM',data:fe.map(r=>r.rpm),backgroundColor:fe.map(r=>barC(r.rpm,vR,false)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},rl(vR,labels.length,'Std')].filter(Boolean)},options:{...baseOpts(vR?Math.max(850,vR-80):850)}}),[sel]);
@@ -915,6 +915,31 @@ function SupplierLoomTab({rows}){
       options: { ...baseOpts(0) }
     };
   }, [sel, fe, vWt]);
+
+  const rankedE=[...fe].sort((a,b)=>(b.effi||0)-(a.effi||0));
+  const rankedR=[...fe].sort((a,b)=>(b.rpm||0)-(a.rpm||0));
+  const rankedWarp=[...fe].filter(r=>r.warpCmpx!==null&&r.warpCmpx!==undefined).sort((a,b)=>a.warpCmpx-b.warpCmpx);
+  const rankedWeft=[...fe].filter(r=>r.weftCmpx!==null&&r.weftCmpx!==undefined).sort((a,b)=>a.weftCmpx-b.weftCmpx);
+
+  const rnkECfg=useMemo(()=>{
+    const o={...baseOpts(),indexAxis:'y'}; delete o.scales.y.min;
+    if(vE!==null)o.scales.x.min=Math.max(80,vE-10);
+    return {type:'bar',data:{labels:rankedE.map(r=>short(r.supplier)),datasets:[{label:'Efficiency %',data:rankedE.map(r=>r.effi),backgroundColor:rankedE.map(r=>barC(r.effi,vE,false)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},vE!==null?rl(vE,rankedE.length,'Std'):null].filter(Boolean)},options:o};
+  },[sel,vE]);
+  const rnkRCfg=useMemo(()=>{
+    const o={...baseOpts(),indexAxis:'y'}; delete o.scales.y.min;
+    if(vR!==null)o.scales.x.min=Math.max(800,vR-80);
+    return {type:'bar',data:{labels:rankedR.map(r=>short(r.supplier)),datasets:[{label:'RPM',data:rankedR.map(r=>r.rpm),backgroundColor:rankedR.map(r=>barC(r.rpm,vR,false)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},vR!==null?rl(vR,rankedR.length,'Std'):null].filter(Boolean)},options:o};
+  },[sel,vR]);
+  const rnkWarpCfg=useMemo(()=>{
+    const o={...baseOpts(0),indexAxis:'y'}; delete o.scales.y.min; o.scales.x.min=0;
+    return {type:'bar',data:{labels:rankedWarp.map(r=>short(r.supplier)),datasets:[{label:'Warp CMPX',data:rankedWarp.map(r=>r.warpCmpx),backgroundColor:rankedWarp.map(r=>barC(r.warpCmpx,vWC,true)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},vWC!==null?rl(vWC,rankedWarp.length,'Std'):null].filter(Boolean)},options:o};
+  },[sel,vWC]);
+  const rnkWeftCfg=useMemo(()=>{
+    const o={...baseOpts(0),indexAxis:'y'}; delete o.scales.y.min; o.scales.x.min=0;
+    return {type:'bar',data:{labels:rankedWeft.map(r=>short(r.supplier)),datasets:[{label:'Weft CMPX',data:rankedWeft.map(r=>r.weftCmpx),backgroundColor:rankedWeft.map(r=>barC(r.weftCmpx,vWt,true)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},vWt!==null?rl(vWt,rankedWeft.length,'Std'):null].filter(Boolean)},options:o};
+  },[sel,vWt]);
+
   const radarCfg=useMemo(()=>{
     const mets=['Effi %','RPM ÷10','Warp CMPX (inv)'];
     const palette=[['rgba(59,255,91,0.05)','#3BFF5B'],['rgba(163,255,18,0.05)','#A3FF12'],['rgba(34,197,94,0.05)','#22C55E'],['rgba(255,255,255,0.02)','#D1D5DB']];
@@ -974,6 +999,18 @@ function SupplierLoomTab({rows}){
     <div className="chart-grid cols-1">
       <ChartBox key={`sl-rad-${sel}`} cfg={radarCfg} title="Multi-metric Radar" sub="Top 4 suppliers vs VFB across 3 metrics" h={300}/>
     </div>
+    <div className="sec-divider" style={{marginTop:32}}>
+      <h2>Ranking Analysis</h2>
+      <p>Performance ranked best to worst against VFB standards.</p>
+    </div>
+    <div className="chart-grid cols-2">
+      <ChartBox key={`sl-rnke-${sel}`} cfg={rnkECfg} title="Efficiency Ranking" sub="Ranked highest to lowest — green = at/above VFB" h={280}/>
+      <ChartBox key={`sl-rnkr-${sel}`} cfg={rnkRCfg} title="RPM Ranking" sub="Ranked highest to lowest — green = at/above VFB" h={280}/>
+    </div>
+    <div className="chart-grid cols-2">
+      <ChartBox key={`sl-rnkwp-${sel}`} cfg={rnkWarpCfg} title="Warp CMPX Ranking" sub="Ranked lowest to highest breaks — green = at/below VFB" h={280}/>
+      <ChartBox key={`sl-rnkwf-${sel}`} cfg={rnkWeftCfg} title="Weft CMPX Ranking" sub="Ranked lowest to highest breaks — green = at/below VFB" h={280}/>
+    </div>
   </div>);
 }
 
@@ -995,7 +1032,12 @@ function SupplierWarpTab({rows}){
     vT!==null?{label:`VFB Total (${fmt(vT,3)})`,data:Array(labels.length).fill(vT),type:'line',borderColor:'#F2C80F',borderWidth:2,borderDash:[4,4],pointRadius:0,fill:false,order:-1}:null
   ].filter(Boolean)},options:{...baseOpts(0)}}),[sel]);
 
-  const hCfg=useMemo(()=>({type:'bar',data:{labels:[...fe.map(r=>short(r.supplier)),...(fv.length?['VFB Std']:[])],datasets:[{label:'Total BKS/MM',data:[...fe.map(r=>r.total),...(fv.length?[vT]:[])],backgroundColor:[...fe.map(r=>barC(r.total,vT,true)),...(fv.length?['rgba(242,200,15,0.6)']:[])],borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7}]},options:{...baseOpts(0),indexAxis:'y'}}),[sel]);
+  const hCfg=useMemo(()=>{
+    const ranked=[...fe].filter(r=>r.total!==null&&r.total!==undefined).sort((a,b)=>a.total-b.total);
+    const validLabels=ranked.map(r=>short(r.supplier));
+    const o={...baseOpts(),indexAxis:'y'}; delete o.scales.y.min; o.scales.x={...o.scales.x,min:0};
+    return {type:'bar',data:{labels:validLabels,datasets:[{label:'Total BKS/MM',data:ranked.map(r=>r.total),backgroundColor:ranked.map(r=>barC(r.total,vT,true)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},vT!==null?rl(vT,validLabels.length,'Std'):null].filter(Boolean)},options:o};
+  },[sel,vT]);
 
   const best=ext.reduce((b,r)=>(!r.total?b:(!b||r.total<b.total)?r:b),null);
   const worst=ext.reduce((b,r)=>(!r.total?b:(!b||r.total>b.total)?r:b),null);
@@ -1057,10 +1099,14 @@ function LotLoomTab({rows}){
     const vWC=avg(vfb.filter(r=>r.warpCmpx!==null).map(r=>r.warpCmpx));
     const vWt=avg(vfb.filter(r=>r.weftCmpx!==null).map(r=>r.weftCmpx));
     const rankedExt=[...ext].sort((a,b)=>(b.effi||0)-(a.effi||0));
-    const labelsRanking=[...rankedExt.map(r=>`${short(r.supplier,12)} (${r.lot||'—'})`),...(vfb.length?['VFB Std']:[])];
+    const labelsRanking=rankedExt.map(r=>`${short(r.supplier,12)} (${r.lot||'—'})`);
     const labels=ext.map(r=>`${short(r.supplier,12)} (${r.lot||'—'})`);
     
-    const rankingCfg=useMemo(()=>({type:'bar',data:{labels:labelsRanking,datasets:[{label:'Efficiency %',data:[...rankedExt.map(r=>r.effi),...(vfb.length?[vE]:[])],backgroundColor:[...rankedExt.map(r=>barC(r.effi,vE,false)),...(vfb.length?['rgba(242,200,15,0.6)']:[])],borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7}]},options:{...baseOpts(),indexAxis:'y',scales:{x:{min:vE?Math.max(80,vE-10):0,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#9CA3AF'}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#9CA3AF'}}}}}),[cn]);
+    const rankingCfg=useMemo(()=>{
+      const o={...baseOpts(),indexAxis:'y'}; delete o.scales.y.min;
+      if(vE!==null)o.scales.x={...o.scales.x,min:Math.max(80,vE-10)};
+      return {type:'bar',data:{labels:labelsRanking,datasets:[{label:'Efficiency %',data:rankedExt.map(r=>r.effi),backgroundColor:rankedExt.map(r=>barC(r.effi,vE,false)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},vE!==null?rl(vE,labelsRanking.length,'Std'):null].filter(Boolean)},options:o};
+    },[cn,vE]);
     const eCfg=useMemo(()=>({type:'bar',data:{labels,datasets:[{label:'EFFI %',data:ext.map(r=>r.effi),backgroundColor:ext.map(r=>barC(r.effi,vE,false)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},vE!==null?{label:`VFB (${fmt(vE)}%)`,data:Array(labels.length).fill(vE),type:'line',borderColor:'#F2C80F',borderWidth:2,borderDash:[4,4],pointRadius:0,fill:false,order:-1}:null].filter(Boolean)},options:{...baseOpts(vE?Math.max(85,vE-8):85)}}),[cn]);
     const tRows=cr.map(r=>({...r,_e:fmt(r.effi),_r:r.rpm?Math.round(r.rpm)+'':'—',_wc:fmt(r.warpCmpx),_wt:fmt(r.weftCmpx),_h:fmt(r.h2Cmpx),_sh:r.shifts||'—'}));
     const cols=[
@@ -1121,6 +1167,25 @@ function LotWarpTab({rows}){
       {label:'Total',data:ext.map(r=>r.total),type:'line',borderColor:'#3BFF5B',borderWidth:2,pointRadius:4,pointBackgroundColor:'#3BFF5B',fill:false,tension:0},
       vT!==null?{label:`VFB (${fmt(vT,3)})`,data:Array(labels.length).fill(vT),type:'line',borderColor:'#F2C80F',borderWidth:2,borderDash:[4,4],pointRadius:0,fill:false,order:-1}:null
     ].filter(Boolean)},options:{...baseOpts(0)}}),[cn]);
+
+    const rankedT=[...ext].filter(r=>r.total!==null&&r.total!==undefined).sort((a,b)=>a.total-b.total);
+    const rankedS=[...ext].filter(r=>r.spg!==null&&r.spg!==undefined).sort((a,b)=>a.spg-b.spg);
+    const rankedW=[...ext].filter(r=>r.wdg!==null&&r.wdg!==undefined).sort((a,b)=>a.wdg-b.wdg);
+    
+    const rnkTCfg=useMemo(()=>{
+      const o={...baseOpts(),indexAxis:'y'}; delete o.scales.y.min; o.scales.x={...o.scales.x,min:0};
+      return {type:'bar',data:{labels:rankedT.map(r=>`${short(r.supplier,12)} (${r.lot||'—'})`),datasets:[{label:'Total BKS/MM',data:rankedT.map(r=>r.total),backgroundColor:rankedT.map(r=>barC(r.total,vT,true)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},vT!==null?rl(vT,rankedT.length,'Total Std'):null].filter(Boolean)},options:o};
+    },[cn,vT]);
+
+    const rnkSCfg=useMemo(()=>{
+      const o={...baseOpts(),indexAxis:'y'}; delete o.scales.y.min; o.scales.x={...o.scales.x,min:0};
+      return {type:'bar',data:{labels:rankedS.map(r=>`${short(r.supplier,12)} (${r.lot||'—'})`),datasets:[{label:'SPG BKS/MM',data:rankedS.map(r=>r.spg),backgroundColor:rankedS.map(r=>barC(r.spg,vS,true)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},vS!==null?rl(vS,rankedS.length,'SPG Std'):null].filter(Boolean)},options:o};
+    },[cn,vS]);
+
+    const rnkWCfg=useMemo(()=>{
+      const o={...baseOpts(),indexAxis:'y'}; delete o.scales.y.min; o.scales.x={...o.scales.x,min:0};
+      return {type:'bar',data:{labels:rankedW.map(r=>`${short(r.supplier,12)} (${r.lot||'—'})`),datasets:[{label:'WDG BKS/MM',data:rankedW.map(r=>r.wdg),backgroundColor:rankedW.map(r=>barC(r.wdg,vW,true)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},vW!==null?rl(vW,rankedW.length,'WDG Std'):null].filter(Boolean)},options:o};
+    },[cn,vW]);
     const tRows=cr.map(r=>({...r,_s:fmt(r.spg,3),_w:fmt(r.wdg,3),_t:fmt(r.total,3),_c:r.creel??'—'}));
     const cols=[
       {k:'supplier',h:'Supplier',cls:()=>'primary',render:r=><>{r.supplier}{isVFB(r.supplier)&&<span className="vfb-tag">★</span>}</>},
@@ -1140,6 +1205,17 @@ function LotWarpTab({rows}){
         <SortTable cols={cols} rows={tRows} rowCls={r=>isVFB(r.supplier)?'vfb':''}/>
       </div>
       <div className="chart-grid cols-1"><ChartBox key={`lw-${cn}`} cfg={bCfg} title={`Warping Break Rates — ${cn}`} sub="SPG + WDG stacked · Green line = total breaks · Gold dashed = VFB target · Lower = better" h={300}/></div>
+      <div className="sec-divider" style={{marginTop:32}}>
+        <h2>Ranking Analysis</h2>
+        <p>Performance ranked lowest breaks to highest against VFB standards.</p>
+      </div>
+      <div className="chart-grid cols-2">
+        <ChartBox key={`lw-rnkt-${cn}`} cfg={rnkTCfg} title="Total BKS/MM Ranking" sub="Ranked lowest to highest — green = at/below VFB" h={280}/>
+        <ChartBox key={`lw-rnks-${cn}`} cfg={rnkSCfg} title="SPG BKS/MM Ranking" sub="Ranked lowest to highest — green = at/below VFB" h={280}/>
+      </div>
+      <div className="chart-grid cols-1">
+        <ChartBox key={`lw-rnkw-${cn}`} cfg={rnkWCfg} title="WDG BKS/MM Ranking" sub="Ranked lowest to highest — green = at/below VFB" h={280}/>
+      </div>
     </div>);
   };
   return(<div>
