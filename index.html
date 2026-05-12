@@ -514,16 +514,23 @@ td.center { text-align: center; }
   border-right: 1px solid rgba(255,255,255,0.02);
   white-space: nowrap;
   font-family: 'Inter', sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 .raw-table td:first-child {
   color: var(--text-primary); font-weight: 600;
-  background: var(--surface);
+  background: var(--page-bg);
   position: sticky; left: 0; z-index: 1;
   border-right: 1px solid var(--border);
   font-family: 'Inter', sans-serif; font-size: 12px;
 }
-.raw-table tr:hover td { background: var(--surface-2); }
-.raw-table tr:hover td:first-child { background: #f1f5f9; }
+.raw-table tr:hover td { 
+  background: var(--surface-active); 
+  color: var(--text-primary); 
+}
+.raw-table tr:hover td:first-child { 
+  background: #0a110a; /* Deep dark green tint for sticky column */
+  color: var(--green-primary); 
+}
 
 /* ═══════════════════════════════════════════════════
    FINAL SUMMARY BADGES
@@ -575,10 +582,35 @@ td.center { text-align: center; }
   border: 1px solid var(--border); border-radius: 8px;
   font-size: 13px; color: var(--text-primary);
   font-family: 'Inter', sans-serif;
-  background: var(--surface-2); outline: none;
-  transition: border-color .15s;
+  background: var(--surface); outline: none;
+  transition: all .3s ease;
 }
-.raw-search input:focus { border-color: var(--blue); background: white; }
+.raw-search input:hover {
+  background: var(--surface-hover);
+  border-color: rgba(59, 255, 91, 0.3);
+  box-shadow: 0 0 10px rgba(59, 255, 91, 0.05);
+}
+.raw-search input:focus {
+  border-color: var(--green-primary);
+  background: var(--surface);
+  box-shadow: 0 0 15px rgba(59, 255, 91, 0.15);
+  outline: none;
+}
+.raw-search input::placeholder {
+  color: var(--text-muted);
+}
+.raw-search input::selection {
+  background: rgba(59, 255, 91, 0.2);
+  color: var(--text-primary);
+}
+.raw-search input:-webkit-autofill,
+.raw-search input:-webkit-autofill:hover, 
+.raw-search input:-webkit-autofill:focus, 
+.raw-search input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--page-bg) inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
 .raw-search label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 .raw-row-count { font-size: 12px; color: var(--text-muted); padding: 0 20px 10px; }
 
@@ -861,9 +893,11 @@ function SupplierLoomTab({rows}){
   const fr=sel==='ALL'?rows:rows.filter(r=>r.count===sel);
   const fv=fr.filter(r=>isVFB(r.supplier));
   const fe=fr.filter(r=>!isVFB(r.supplier));
-  const vE=avg(fv.map(r=>r.effi)),vR=avg(fv.map(r=>r.rpm));
-  const vWC=avg(fv.filter(r=>r.warpCmpx!==null).map(r=>r.warpCmpx));
-  const vWt=avg(fv.filter(r=>r.weftCmpx!==null).map(r=>r.weftCmpx));
+  const allFv=rows.filter(r=>isVFB(r.supplier));
+  let vE=avg(fv.map(r=>r.effi)); if(vE===null) vE=avg(allFv.map(r=>r.effi));
+  let vR=avg(fv.map(r=>r.rpm)); if(vR===null) vR=avg(allFv.map(r=>r.rpm));
+  let vWC=avg(fv.filter(r=>r.warpCmpx!==null).map(r=>r.warpCmpx)); if(vWC===null) vWC=avg(allFv.filter(r=>r.warpCmpx!==null).map(r=>r.warpCmpx));
+  let vWt=avg(fv.filter(r=>r.weftCmpx!==null).map(r=>r.weftCmpx)); if(vWt===null) vWt=avg(allFv.filter(r=>r.weftCmpx!==null).map(r=>r.weftCmpx));
   const labels=fe.map(r=>short(r.supplier));
 
   const eCfg=useMemo(()=>({type:'bar',data:{labels,datasets:[{label:'Efficiency %',data:fe.map(r=>r.effi),backgroundColor:fe.map(r=>barC(r.effi,vE,false)),borderRadius:4,borderWidth:0,barPercentage:0.6,categoryPercentage:0.7},rl(vE,labels.length,'Std')].filter(Boolean)},options:{...baseOpts(vE?Math.max(85,vE-8):85)}}),[sel]);
@@ -1022,7 +1056,10 @@ function SupplierWarpTab({rows}){
   const fr=sel==='ALL'?rows:rows.filter(r=>r.count===sel);
   const fv=fr.filter(r=>isVFB(r.supplier));
   const fe=fr.filter(r=>!isVFB(r.supplier));
-  const vT=avg(fv.map(r=>r.total)),vS=avg(fv.map(r=>r.spg)),vW=avg(fv.map(r=>r.wdg));
+  const allFv=rows.filter(r=>isVFB(r.supplier));
+  let vT=avg(fv.map(r=>r.total)); if(vT===null) vT=avg(allFv.map(r=>r.total));
+  let vS=avg(fv.map(r=>r.spg)); if(vS===null) vS=avg(allFv.map(r=>r.spg));
+  let vW=avg(fv.map(r=>r.wdg)); if(vW===null) vW=avg(allFv.map(r=>r.wdg));
   const labels=fe.map(r=>short(r.supplier));
 
   const brkCfg=useMemo(()=>({type:'bar',data:{labels,datasets:[
@@ -1093,11 +1130,16 @@ function LotLoomTab({rows}){
   const groups=useMemo(()=>groupBy(rows,'count'),[rows]);
   const counts=['ALL', ...Object.keys(groups)];
   const[active,setActive]=useState('ALL');
+  const allFv=useMemo(()=>rows.filter(r=>isVFB(r.supplier)),[rows]);
+  const g_vE=avg(allFv.map(r=>r.effi)), g_vR=avg(allFv.map(r=>r.rpm));
+  const g_vWC=avg(allFv.filter(r=>r.warpCmpx!==null).map(r=>r.warpCmpx));
+  const g_vWt=avg(allFv.filter(r=>r.weftCmpx!==null).map(r=>r.weftCmpx));
   const Panel=({cr,cn})=>{
     const vfb=cr.filter(r=>isVFB(r.supplier)),ext=cr.filter(r=>!isVFB(r.supplier));
-    const vE=avg(vfb.map(r=>r.effi)),vR=avg(vfb.map(r=>r.rpm));
-    const vWC=avg(vfb.filter(r=>r.warpCmpx!==null).map(r=>r.warpCmpx));
-    const vWt=avg(vfb.filter(r=>r.weftCmpx!==null).map(r=>r.weftCmpx));
+    let vE=avg(vfb.map(r=>r.effi)); if(vE===null) vE=g_vE;
+    let vR=avg(vfb.map(r=>r.rpm)); if(vR===null) vR=g_vR;
+    let vWC=avg(vfb.filter(r=>r.warpCmpx!==null).map(r=>r.warpCmpx)); if(vWC===null) vWC=g_vWC;
+    let vWt=avg(vfb.filter(r=>r.weftCmpx!==null).map(r=>r.weftCmpx)); if(vWt===null) vWt=g_vWt;
     const rankedExt=[...ext].sort((a,b)=>(b.effi||0)-(a.effi||0));
     const labelsRanking=rankedExt.map(r=>`${short(r.supplier,12)} (${r.lot||'—'})`);
     const labels=ext.map(r=>`${short(r.supplier,12)} (${r.lot||'—'})`);
@@ -1157,9 +1199,13 @@ function LotWarpTab({rows}){
   const groups=useMemo(()=>groupBy(rows,'count'),[rows]);
   const counts=['ALL', ...Object.keys(groups)];
   const[active,setActive]=useState('ALL');
+  const allFv=useMemo(()=>rows.filter(r=>isVFB(r.supplier)),[rows]);
+  const g_vT=avg(allFv.map(r=>r.total)), g_vS=avg(allFv.map(r=>r.spg)), g_vW=avg(allFv.map(r=>r.wdg));
   const Panel=({cr,cn})=>{
     const vfb=cr.filter(r=>isVFB(r.supplier)),ext=cr.filter(r=>!isVFB(r.supplier));
-    const vT=avg(vfb.map(r=>r.total)),vS=avg(vfb.map(r=>r.spg)),vW=avg(vfb.map(r=>r.wdg));
+    let vT=avg(vfb.map(r=>r.total)); if(vT===null) vT=g_vT;
+    let vS=avg(vfb.map(r=>r.spg)); if(vS===null) vS=g_vS;
+    let vW=avg(vfb.map(r=>r.wdg)); if(vW===null) vW=g_vW;
     const labels=ext.map(r=>`${short(r.supplier,12)} (${r.lot||'—'})`);
     const bCfg=useMemo(()=>({type:'bar',data:{labels,datasets:[
       {label:'SPG BKS/MM',data:ext.map(r=>r.spg),backgroundColor:'#A3FF12',borderRadius:0,borderWidth:0,stack:'s',barPercentage:0.6,categoryPercentage:0.7},
